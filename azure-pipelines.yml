@@ -1,0 +1,62 @@
+trigger: none
+pr: none
+
+parameters:
+  - name: topology_type
+    type: string
+    default: ""
+
+  - name: requested_by
+    type: string
+    default: ""
+
+  - name: requested_by_email
+    type: string
+    default: ""
+
+  - name: booking_id
+    type: string
+    default: ""
+
+  - name: booking_start
+    type: string
+    default: ""
+
+  - name: booking_end
+    type: string
+    default: ""
+
+  - name: booking_duration_hours
+    type: string
+    default: ""
+
+stages:
+  - stage: Execute
+    displayName: Submit build request
+    jobs:
+      - job: SubmitToAnsibleApi
+        displayName: Call Flask API with SSO token
+        pool:
+          vmImage: ubuntu-latest
+
+        steps:
+          - checkout: self
+
+          - bash: |
+              chmod +x scripts/submit_build_request.sh
+              scripts/submit_build_request.sh \
+                "${{ parameters.topology_type }}" \
+                "${{ parameters.requested_by }}" \
+                "${{ parameters.requested_by_email }}" \
+                "${{ parameters.booking_id }}" \
+                "${{ parameters.booking_start }}" \
+                "${{ parameters.booking_end }}" \
+                "${{ parameters.booking_duration_hours }}"
+
+            displayName: Submit build request
+            env:
+              API_BASE_URL: "$(api_base_url)"    # $( ... ) notation means Pipeline Variables - Pipelines → Edit → Variables
+              IDP_TOKEN_URL: "$(idp_token_url)"  #
+              CLIENT_ID: "$(client_id)"          #
+              CLIENT_SECRET: "$(client_secret)"  #
+              API_SCOPE: "$(api_scope)"          #
