@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart ansible api
+  ansible.builtin.systemd:
+    name: ansible-api.service
+    state: restarted

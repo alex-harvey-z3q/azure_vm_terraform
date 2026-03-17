@@ -1,0 +1,8 @@
+---
+- name: Bootstrap Ansible + Flask API host
+  hosts: api_host
+  become: true
+  gather_facts: true
+
+  roles:
+    - api_host

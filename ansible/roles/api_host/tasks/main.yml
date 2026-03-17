@@ -1,0 +1,68 @@
+---
+- name: Install OS packages
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-venv
+      - python3-pip
+      - git
+      - jq
+      - curl
+    update_cache: true
+    state: present
+
+- name: Ensure app directory exists
+  ansible.builtin.file:
+    path: "{{ api_app_dir }}"
+    state: directory
+    owner: "{{ api_app_user }}"
+    group: "{{ api_app_group }}"
+    mode: "0755"
+
+- name: Create Python virtualenv for API app
+  ansible.builtin.command:
+    cmd: "python3 -m venv {{ api_app_dir }}/venv"
+    creates: "{{ api_app_dir }}/venv/bin/activate"
+
+- name: Install API Python packages
+  ansible.builtin.pip:
+    name: "{{ api_python_packages }}"
+    virtualenv: "{{ api_app_dir }}/venv"
+    state: present
+
+- name: Deploy Flask API app
+  ansible.builtin.template:
+    src: app.py.j2
+    dest: "{{ api_app_dir }}/app.py"
+    owner: "{{ api_app_user }}"
+    group: "{{ api_app_group }}"
+    mode: "0644"
+  notify: Restart ansible api
+
+- name: Deploy systemd service
+  ansible.builtin.template:
+    src: ansible-api.service.j2
+    dest: /etc/systemd/system/ansible-api.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart ansible api
+
+- name: Ensure ansible api service is enabled and started
+  ansible.builtin.systemd:
+    name: ansible-api.service
+    enabled: true
+    state: started
+
+- name: Wait for API health endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ api_listen_port }}/health"
+    method: GET
+    return_content: true
+    status_code: 200
+  register: api_health
+  retries: 10
+  delay: 3
+  until: api_health.status == 200

@@ -1,0 +1,15 @@
+[Unit]
+Description=Ansible Flask API
+After=network.target
+
+[Service]
+Type=simple
+User={{ api_app_user }}
+Group={{ api_app_group }}
+WorkingDirectory={{ api_app_dir }}
+ExecStart={{ api_app_dir }}/venv/bin/gunicorn --bind {{ api_listen_host }}:{{ api_listen_port }} app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+---
+api_app_dir: /opt/ansible-api
+api_app_user: azureuser
+api_app_group: azureuser
+api_listen_host: 0.0.0.0
+api_listen_port: 5000
+
+api_python_packages:
+  - flask==3.0.3
+  - gunicorn==22.0.0
