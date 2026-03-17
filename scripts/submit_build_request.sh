@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Submits a build request to the Ansible Flask API using an SSO-issued token.
+# Submits a build request to the Flask API with no auth.
 #
 # Expected arguments:
 #   1. topology_type
@@ -13,17 +13,13 @@
 #
 # Required environment variables:
 #   API_BASE_URL
-#   IDP_TOKEN_URL
-#   CLIENT_ID
-#   CLIENT_SECRET
-#   API_SCOPE
 
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
 Usage:
-  submit_build_request_sso.sh \
+  submit_build_request.sh \
     <topology_type> \
     <requested_by> \
     <requested_by_email> \
@@ -31,12 +27,9 @@ Usage:
     <booking_start> \
     <booking_end> \
     <booking_duration_hours>
+
 Required environment variables:
   API_BASE_URL
-  IDP_TOKEN_URL
-  CLIENT_ID
-  CLIENT_SECRET
-  API_SCOPE
 EOF
 }
 
@@ -67,7 +60,7 @@ build_request_payload() {
   local booking_end="$7"
   local booking_duration_hours="$8"
 
-cat > "$request_file" <<EOF
+  cat > "$request_file" <<EOF
 {
   "topology_type": "$topology_type",
   "requested_by": "$requested_by",
@@ -80,48 +73,18 @@ cat > "$request_file" <<EOF
 EOF
 }
 
-get_access_token() {
-  local token_response_file="$1"
-
-  local http_code
-  http_code="$(
-    curl \
-      --silent \
-      --show-error \
-      --output         "$token_response_file" \
-      --write-out      "%{http_code}" \
-      --request POST   "$IDP_TOKEN_URL" \
-      --header         "Content-Type: application/x-www-form-urlencoded" \
-      --data-urlencode "grant_type=client_credentials" \
-      --data-urlencode "client_id=$CLIENT_ID" \
-      --data-urlencode "client_secret=$CLIENT_SECRET" \
-      --data-urlencode "scope=$API_SCOPE"
-  )"
-
-  if [[ "$http_code" != '200' ]]; then
-    echo "ERROR: Failed to obtain access token. HTTP status: $http_code" >&2
-    cat "$token_response_file" >&2
-    echo >&2
-    exit 1
-  fi
-
-  jq -r '.access_token' "$token_response_file"
-}
-
 submit_request() {
   local request_file="$1"
   local response_file="$2"
-  local access_token="$3"
 
   local http_code
 
   http_code="$(curl --silent --show-error \
     --write-out "%{http_code}" \
     --request POST "$API_BASE_URL"/build \
-    --header  "Content-Type: application/json" \
-    --header  "Authorization: Bearer $access_token" \
-    --data    @"$request_file" \
-    --output  "$response_file"
+    --header "Content-Type: application/json" \
+    --data @"$request_file" \
+    --output "$response_file"
   )"
 
   echo "$http_code"
@@ -129,12 +92,7 @@ submit_request() {
 
 main() {
   validate_args "$@"
-
   require_env 'API_BASE_URL'
-  require_env 'IDP_TOKEN_URL'
-  require_env 'CLIENT_ID'
-  require_env 'CLIENT_SECRET'
-  require_env 'API_SCOPE'
 
   local topology_type="$1"
   local requested_by="$2"
@@ -148,9 +106,7 @@ main() {
   workdir="$(mktemp -d)"
 
   local request_file="$workdir"/request.json
-  local token_response_file="$workdir"/token_response.json
   local response_file="$workdir"/response.json
-  local access_token
   local http_code
 
   trap 'rm -rf "$workdir"' EXIT
@@ -165,16 +121,13 @@ main() {
     "$booking_end" \
     "$booking_duration_hours"
 
-  echo "Requesting SSO access token..."
-  access_token="$(get_access_token "$token_response_file")"
-
   echo "Submitting build request to $API_BASE_URL/build ..."
-  http_code="$(submit_request "$request_file" "$response_file" "$access_token")"
+  http_code="$(submit_request "$request_file" "$response_file")"
 
   echo "HTTP status: $http_code"
-
   echo "API response body:"
   cat "$response_file"
+  echo
 
   if [[ "$http_code" != '200' ]]; then
     echo "ERROR: API call failed." >&2

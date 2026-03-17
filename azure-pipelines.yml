@@ -34,8 +34,8 @@ stages:
   - stage: Execute
     displayName: Submit build request
     jobs:
-      - job: SubmitToAnsibleApi
-        displayName: Call Flask API with SSO token
+      - job: SubmitToFlaskApi
+        displayName: Call Flask API
         pool:
           vmImage: ubuntu-latest
 
@@ -52,11 +52,6 @@ stages:
                 "${{ parameters.booking_start }}" \
                 "${{ parameters.booking_end }}" \
                 "${{ parameters.booking_duration_hours }}"
-
             displayName: Submit build request
             env:
-              API_BASE_URL: "$(api_base_url)"    # $( ... ) notation means Pipeline Variables - Pipelines → Edit → Variables
-              IDP_TOKEN_URL: "$(idp_token_url)"  #
-              CLIENT_ID: "$(client_id)"          #
-              CLIENT_SECRET: "$(client_secret)"  #
-              API_SCOPE: "$(api_scope)"          #
+              API_BASE_URL: "$(api_base_url)"
