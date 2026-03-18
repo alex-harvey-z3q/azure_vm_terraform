@@ -1,6 +1,9 @@
 trigger: none
 pr: none
 
+pool:
+  name: Default
+
 parameters:
   - name: topology_type
     type: string
