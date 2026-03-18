@@ -39,8 +39,6 @@ stages:
     jobs:
       - job: SubmitToFlaskApi
         displayName: Call Flask API
-        pool:
-          vmImage: ubuntu-latest
 
         steps:
           - checkout: self
