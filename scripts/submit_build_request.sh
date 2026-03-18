@@ -109,6 +109,8 @@ main() {
   local response_file="$workdir"/response.json
   local http_code
 
+  trap "rm -rf '$workdir'" EXIT
+
   build_request_payload \
     "$request_file" \
     "$topology_type" \
