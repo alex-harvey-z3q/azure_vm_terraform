@@ -229,6 +229,18 @@ resource "azurerm_windows_virtual_machine" "windows" {
   }
 }
 
+resource "azurerm_virtual_machine_extension" "windows_winrm" {
+  name                 = "enable-winrm"
+  virtual_machine_id   = azurerm_windows_virtual_machine.windows.id
+  publisher            = "Microsoft.Compute"
+  type                 = "CustomScriptExtension"
+  type_handler_version = "1.10"
+
+  settings = jsonencode({
+    commandToExecute = "powershell -ExecutionPolicy Bypass -Command \"winrm quickconfig -q; Enable-PSRemoting -Force; Set-Item -Path WSMan:\\localhost\\Service\\Auth\\NTLM -Value $true; $cert = New-SelfSignedCertificate -DnsName 'winrm-selfsigned' -CertStoreLocation Cert:\\LocalMachine\\My; winrm create winrm/config/Listener?Address=*+Transport=HTTPS \\\"@{Hostname='winrm-selfsigned';CertificateThumbprint='$($cert.Thumbprint)'}\\\"; New-NetFirewallRule -DisplayName 'WinRM HTTPS' -Direction Inbound -Protocol TCP -LocalPort 5986 -Action Allow\""
+  })
+}
+
 output "resource_group_name" {
   value = azurerm_resource_group.this.name
 }
