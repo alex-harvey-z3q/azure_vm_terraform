@@ -1,0 +1,2 @@
+ansible/inventory/group_vars/windows_secrets.yml
+ansible/inventory/hosts.yml
