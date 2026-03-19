@@ -19,6 +19,14 @@
     group: "{{ api_app_group }}"
     mode: "0755"
 
+- name: Ensure hostname is resolvable in /etc/hosts
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s+'
+    line: "127.0.1.1 {{ ansible_hostname }}"
+    state: present
+
 - name: Create Python virtualenv for API app
   ansible.builtin.command:
     cmd: "python3 -m venv {{ api_app_dir }}/venv"

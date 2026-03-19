@@ -1,6 +1,43 @@
 from flask import Flask, jsonify, request
+import json
+import os
+import re
+import subprocess
 
 app = Flask(__name__)
+
+ANSIBLE_DIR = "/home/azureuser/ansible"
+ANSIBLE_PLAYBOOK = f"{ANSIBLE_DIR}/.venv/bin/ansible-playbook"
+INVENTORY = f"{ANSIBLE_DIR}/inventory/hosts.yml"
+WINDOWS_SECRETS = f"{ANSIBLE_DIR}/inventory/group_vars/windows_secrets.yml"
+TEMP_PASSWORD_FILE = "/tmp/nste_temp_password.txt"
+
+
+def derive_booking_username(requested_by: str, requested_by_email: str) -> str:
+    if requested_by_email and "@" in requested_by_email:
+        base = requested_by_email.split("@", 1)[0]
+    else:
+        base = requested_by.lower().strip().replace(" ", "")
+    base = re.sub(r"[^a-zA-Z0-9]", "", base).lower()
+    return f"nste-{base[:10]}"
+
+
+def run_playbook(playbook_name: str, booking_username: str, booking_id: str) -> None:
+    subprocess.run(
+        [
+            ANSIBLE_PLAYBOOK,
+            "-i",
+            INVENTORY,
+            f"{ANSIBLE_DIR}/playbooks/{playbook_name}",
+            "-e",
+            f"@{WINDOWS_SECRETS}",
+            "-e",
+            f"booking_username={booking_username}",
+            "-e",
+            f"booking_id={booking_id}",
+        ],
+        check=True,
+    )
 
 
 @app.get("/health")
@@ -11,26 +48,81 @@ def health():
 @app.post("/build")
 def build():
     payload = request.get_json(silent=True) or {}
+
     required = [
-        "topology_type",
         "requested_by",
         "requested_by_email",
         "booking_id",
-        "booking_start",
-        "booking_end",
-        "booking_duration_hours",
     ]
     missing = [field for field in required if not payload.get(field)]
     if missing:
         return jsonify({"status": "error", "missing_fields": missing}), 400
 
-    return jsonify(
-        {
-            "status": "accepted",
-            "message": "Placeholder build endpoint reached",
-            "received": payload,
-        }
-    ), 200
+    booking_id = payload["booking_id"]
+    requested_by = payload["requested_by"]
+    requested_by_email = payload["requested_by_email"]
+    booking_username = derive_booking_username(requested_by, requested_by_email)
+
+    try:
+        run_playbook("create_temp_user.yaml", booking_username, booking_id)
+
+        temp_password = None
+        if os.path.exists(TEMP_PASSWORD_FILE):
+            with open(TEMP_PASSWORD_FILE, "r", encoding="utf-8") as fh:
+                temp_password = fh.read().strip()
+
+        return jsonify(
+            {
+                "status": "accepted",
+                "booking_id": booking_id,
+                "booking_username": booking_username,
+                "temp_password": temp_password,
+            }
+        ), 200
+
+    except subprocess.CalledProcessError as exc:
+        return jsonify(
+            {
+                "status": "error",
+                "message": "Failed to create temp user",
+                "returncode": exc.returncode,
+            }
+        ), 500
+
+
+@app.post("/teardown")
+def teardown():
+    payload = request.get_json(silent=True) or {}
+
+    required = [
+        "booking_username",
+        "booking_id",
+    ]
+    missing = [field for field in required if not payload.get(field)]
+    if missing:
+        return jsonify({"status": "error", "missing_fields": missing}), 400
+
+    booking_username = payload["booking_username"]
+    booking_id = payload["booking_id"]
+
+    try:
+        run_playbook("delete_temp_user.yaml", booking_username, booking_id)
+        return jsonify(
+            {
+                "status": "deleted",
+                "booking_id": booking_id,
+                "booking_username": booking_username,
+            }
+        ), 200
+
+    except subprocess.CalledProcessError as exc:
+        return jsonify(
+            {
+                "status": "error",
+                "message": "Failed to delete temp user",
+                "returncode": exc.returncode,
+            }
+        ), 500
 
 
 if __name__ == "__main__":

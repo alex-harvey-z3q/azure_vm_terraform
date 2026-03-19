@@ -1,0 +1,37 @@
+---
+# create_temp_user.yml
+# Usage: -e "booking_username=nste-jsmith booking_id=BK-001"
+
+- name: Create temporary local user on NSTE Jumphost
+  hosts: windows
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Generate a random password
+      ansible.builtin.set_fact:
+        temp_password: "{{ lookup('password', '/dev/null length=16 chars=ascii_letters,digits,punctuation') }}"
+
+    - name: Create local user account
+      ansible.windows.win_user:
+        name: "{{ booking_username }}"
+        password: "{{ temp_password }}"
+        state: present
+        password_never_expires: false
+        user_cannot_change_password: false
+        account_disabled: false
+        description: "NSTE temp account | {{ booking_id }}"
+        groups:
+          - Remote Desktop Users
+          - Users
+
+    - name: Write password to temp file for pipeline to collect
+      ansible.builtin.copy:
+        content: "{{ temp_password }}"
+        dest: /tmp/nste_temp_password.txt
+        mode: '0600'
+      delegate_to: localhost
+
+    - name: Log account creation
+      ansible.builtin.debug:
+        msg: "Temp account created: {{ booking_username }} | Booking: {{ booking_id }}"
