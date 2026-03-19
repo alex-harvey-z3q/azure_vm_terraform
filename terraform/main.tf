@@ -237,7 +237,7 @@ resource "azurerm_virtual_machine_extension" "windows_winrm" {
   type_handler_version = "1.10"
 
   settings = jsonencode({
-    commandToExecute = "powershell -ExecutionPolicy Bypass -Command \"winrm quickconfig -q; Enable-PSRemoting -Force; Set-Item -Path WSMan:\\localhost\\Service\\Auth\\NTLM -Value $true; $cert = New-SelfSignedCertificate -DnsName 'winrm-selfsigned' -CertStoreLocation Cert:\\LocalMachine\\My; winrm create winrm/config/Listener?Address=*+Transport=HTTPS \\\"@{Hostname='winrm-selfsigned';CertificateThumbprint='$($cert.Thumbprint)'}\\\"; New-NetFirewallRule -DisplayName 'WinRM HTTPS' -Direction Inbound -Protocol TCP -LocalPort 5986 -Action Allow\""
+    commandToExecute = "powershell -ExecutionPolicy Bypass -Command \"winrm quickconfig -q; Enable-PSRemoting -Force; Set-Item -Path WSMan:\\localhost\\Service\\Auth\\NTLM -Value $true; $cert = New-SelfSignedCertificate -DnsName 'winrm-selfsigned' -CertStoreLocation Cert:\\LocalMachine\\My; winrm create winrm/config/Listener?Address=*+Transport=HTTPS \\\"@{Hostname='winrm-selfsigned';CertificateThumbprint='$($cert.Thumbprint)'}\\\"; New-NetFirewallRule -DisplayName 'WinRM HTTPS' -Direction Inbound -Protocol TCP -LocalPort 5986 -Action Allow\"; New-NetFirewallRule -Name Allow-ICMPv4 -DisplayName Allow ICMPv4-In -Protocol ICMPv4 -IcmpType 8 -Direction Inbound -Action Allow\""
   })
 }
 
