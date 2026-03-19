@@ -1,0 +1,36 @@
+---
+- name: Sync Ansible control-node project to Linux VM
+  hosts: api_host
+  become: false
+  gather_facts: false
+
+  vars:
+    control_node_project_dir: /home/azureuser/ansible
+
+  tasks:
+    - name: Ensure target directory exists
+      ansible.builtin.file:
+        path: "{{ control_node_project_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Synchronize Ansible project
+      ansible.posix.synchronize:
+        src: "{{ playbook_dir }}/../"
+        dest: "{{ control_node_project_dir }}/"
+        delete: false
+        recursive: true
+        rsync_opts:
+          - "--exclude=.venv"
+          - "--exclude=.git"
+          - "--exclude=__pycache__"
+
+    - name: Create virtual environment
+      ansible.builtin.command:
+        cmd: python3 -m venv {{ control_node_project_dir }}/.venv
+        creates: "{{ control_node_project_dir }}/.venv/bin/activate"
+
+    - name: Install Python requirements
+      ansible.builtin.pip:
+        requirements: "{{ control_node_project_dir }}/requirements.txt"
+        virtualenv: "{{ control_node_project_dir }}/.venv"

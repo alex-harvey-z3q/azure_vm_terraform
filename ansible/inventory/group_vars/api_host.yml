@@ -8,3 +8,6 @@ api_listen_port: 5000
 api_python_packages:
   - flask==3.0.3
   - gunicorn==22.0.0
+  - ansible
+  - pywinrm
+  - requests-ntlm
