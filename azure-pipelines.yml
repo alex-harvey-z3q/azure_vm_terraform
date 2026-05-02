@@ -34,8 +34,22 @@ parameters:
     default: ""
 
 stages:
+  - stage: Quality
+    displayName: Quality checks
+    jobs:
+      - job: QualityChecks
+        displayName: Run Makefile quality checks
+
+        steps:
+          - checkout: self
+
+          - bash: |
+              make quality
+            displayName: make quality
+
   - stage: Execute
     displayName: Submit build request
+    dependsOn: Quality
     jobs:
       - job: SubmitToFlaskApi
         displayName: Call Flask API
