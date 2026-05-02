@@ -1,0 +1,7 @@
+configuration:
+  AZURE_BICEP_FILE_EXPANSION: true
+
+input:
+  pathIgnore:
+    - bicepconfig.json
+    - resources.bicep

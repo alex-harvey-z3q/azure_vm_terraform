@@ -1,0 +1,481 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "8854672156416192895"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "australiasoutheast",
+      "metadata": {
+        "description": "Azure region for the resource group and all resources."
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-personal-ansible-api",
+      "metadata": {
+        "description": "Resource group name."
+      }
+    },
+    "sshPublicKey": {
+      "type": "string",
+      "metadata": {
+        "description": "Your SSH public key contents."
+      }
+    },
+    "windowsAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Administrator password for the Windows VM."
+      }
+    },
+    "sshPrivateKeyPath": {
+      "type": "string",
+      "defaultValue": "~/.ssh/id_ed25519",
+      "metadata": {
+        "description": "Private key path used only to render the ssh_command output."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "personal-ansible-api-resources",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sshPublicKey": {
+            "value": "[parameters('sshPublicKey')]"
+          },
+          "windowsAdminPassword": {
+            "value": "[parameters('windowsAdminPassword')]"
+          },
+          "sshPrivateKeyPath": {
+            "value": "[parameters('sshPrivateKeyPath')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "7112830034490623616"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region for all resources."
+              }
+            },
+            "sshPublicKey": {
+              "type": "string",
+              "metadata": {
+                "description": "Your SSH public key contents."
+              }
+            },
+            "windowsAdminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Administrator password for the Windows VM."
+              }
+            },
+            "sshPrivateKeyPath": {
+              "type": "string",
+              "defaultValue": "~/.ssh/id_ed25519",
+              "metadata": {
+                "description": "Private key path used only to render the ssh_command output."
+              }
+            },
+            "linuxAdminUsername": {
+              "type": "string",
+              "defaultValue": "azureuser"
+            },
+            "windowsAdminUsername": {
+              "type": "string",
+              "defaultValue": "azureuser"
+            }
+          },
+          "variables": {
+            "vnetName": "vnet-personal-ansible-api",
+            "subnetName": "snet-default",
+            "linuxVmName": "vm-personal-ansible-api",
+            "linuxVmSize": "Standard_D2s_v3",
+            "windowsVmName": "vm-personal-windows",
+            "windowsComputerName": "winpoc01",
+            "windowsVmSize": "Standard_D2s_v3",
+            "addressSpace": [
+              "10.10.0.0/16"
+            ],
+            "subnetPrefix": [
+              "10.10.1.0/24"
+            ],
+            "subnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
+            "winRmCommand": "powershell -ExecutionPolicy Bypass -Command \"winrm quickconfig -q; Enable-PSRemoting -Force; Set-Item -Path WSMan:\\localhost\\Service\\Auth\\NTLM -Value $true; $cert = New-SelfSignedCertificate -DnsName 'winrm-selfsigned' -CertStoreLocation Cert:\\LocalMachine\\My; winrm create winrm/config/Listener?Address=*+Transport=HTTPS \\\"@{Hostname='winrm-selfsigned';CertificateThumbprint='$($cert.Thumbprint)'}\\\"; New-NetFirewallRule -DisplayName 'WinRM HTTPS' -Direction Inbound -Protocol TCP -LocalPort 5986 -Action Allow\"; New-NetFirewallRule -Name Allow-ICMPv4 -DisplayName Allow ICMPv4-In -Protocol ICMPv4 -IcmpType 8 -Direction Inbound -Action Allow\""
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": "[variables('addressSpace')]"
+                },
+                "subnets": [
+                  {
+                    "name": "[variables('subnetName')]",
+                    "properties": {
+                      "addressPrefixes": "[variables('subnetPrefix')]"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "pip-personal-ansible-api",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "pip-personal-windows",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2024-05-01",
+              "name": "nsg-personal-ansible-api",
+              "location": "[parameters('location')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "allow-ssh",
+                    "properties": {
+                      "priority": 100,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "22",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  },
+                  {
+                    "name": "allow-flask-api",
+                    "properties": {
+                      "priority": 110,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "5000",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  },
+                  {
+                    "name": "allow-rdp",
+                    "properties": {
+                      "priority": 120,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  },
+                  {
+                    "name": "allow-winrm-https",
+                    "properties": {
+                      "priority": 130,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "5986",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2024-05-01",
+              "name": "nic-personal-ansible-api",
+              "location": "[parameters('location')]",
+              "properties": {
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-personal-ansible-api')]"
+                },
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "subnet": {
+                        "id": "[variables('subnetId')]"
+                      },
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-ansible-api')]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-ansible-api')]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-personal-ansible-api')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2024-05-01",
+              "name": "nic-personal-windows",
+              "location": "[parameters('location')]",
+              "properties": {
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-personal-ansible-api')]"
+                },
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "subnet": {
+                        "id": "[variables('subnetId')]"
+                      },
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-windows')]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-personal-ansible-api')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-windows')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2024-07-01",
+              "name": "[variables('linuxVmName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[variables('linuxVmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[variables('linuxVmName')]",
+                  "adminUsername": "[parameters('linuxAdminUsername')]",
+                  "linuxConfiguration": {
+                    "disablePasswordAuthentication": true,
+                    "ssh": {
+                      "publicKeys": [
+                        {
+                          "path": "[format('/home/{0}/.ssh/authorized_keys', parameters('linuxAdminUsername'))]",
+                          "keyData": "[parameters('sshPublicKey')]"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "Canonical",
+                    "offer": "0001-com-ubuntu-server-jammy",
+                    "sku": "22_04-lts",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "name": "[format('osdisk-{0}', variables('linuxVmName'))]",
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Standard_LRS"
+                    }
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', 'nic-personal-ansible-api')]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', 'nic-personal-ansible-api')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2024-07-01",
+              "name": "[variables('windowsVmName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[variables('windowsVmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[variables('windowsComputerName')]",
+                  "adminUsername": "[parameters('windowsAdminUsername')]",
+                  "adminPassword": "[parameters('windowsAdminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "MicrosoftWindowsServer",
+                    "offer": "WindowsServer",
+                    "sku": "2022-datacenter-azure-edition",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "name": "[format('osdisk-{0}', variables('windowsVmName'))]",
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Standard_LRS"
+                    }
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', 'nic-personal-windows')]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', 'nic-personal-windows')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2024-07-01",
+              "name": "[format('{0}/{1}', variables('windowsVmName'), 'enable-winrm')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.10",
+                "settings": {
+                  "commandToExecute": "[variables('winRmCommand')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', variables('windowsVmName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "linuxPublicIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-ansible-api'), '2024-05-01').ipAddress]"
+            },
+            "linuxPrivateIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', 'nic-personal-ansible-api'), '2024-05-01').ipConfigurations[0].properties.privateIPAddress]"
+            },
+            "sshCommand": {
+              "type": "string",
+              "value": "[format('ssh -i {0} {1}@{2}', parameters('sshPrivateKeyPath'), parameters('linuxAdminUsername'), reference(resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-ansible-api'), '2024-05-01').ipAddress)]"
+            },
+            "windowsPublicIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', 'pip-personal-windows'), '2024-05-01').ipAddress]"
+            },
+            "windowsPrivateIp": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', 'nic-personal-windows'), '2024-05-01').ipConfigurations[0].properties.privateIPAddress]"
+            },
+            "windowsAdminUsername": {
+              "type": "string",
+              "value": "[parameters('windowsAdminUsername')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "linuxPublicIp": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'personal-ansible-api-resources'), '2025-04-01').outputs.linuxPublicIp.value]"
+    },
+    "linuxPrivateIp": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'personal-ansible-api-resources'), '2025-04-01').outputs.linuxPrivateIp.value]"
+    },
+    "sshCommand": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'personal-ansible-api-resources'), '2025-04-01').outputs.sshCommand.value]"
+    },
+    "windowsPublicIp": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'personal-ansible-api-resources'), '2025-04-01').outputs.windowsPublicIp.value]"
+    },
+    "windowsPrivateIp": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'personal-ansible-api-resources'), '2025-04-01').outputs.windowsPrivateIp.value]"
+    },
+    "windowsAdminUsername": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'personal-ansible-api-resources'), '2025-04-01').outputs.windowsAdminUsername.value]"
+    }
+  }
+}
