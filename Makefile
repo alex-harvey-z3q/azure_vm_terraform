@@ -1,4 +1,4 @@
-.PHONY: help quality bicep-lint bicep-build json-lint terraform-fmt shellcheck ansible-deps ansible-lint
+.PHONY: help quality bicep-lint bicep-build json-lint shellcheck ansible-deps ansible-lint
 
 SHELL := /bin/bash
 
@@ -15,11 +15,10 @@ help:
 		'  bicep-lint     Lint Bicep templates' \
 		'  bicep-build    Build Bicep to ARM JSON' \
 		'  json-lint      Validate JSON files' \
-		'  terraform-fmt  Check Terraform formatting' \
 		'  shellcheck     Run ShellCheck on shell scripts' \
 		'  ansible-lint   Run ansible-lint from the Ansible project directory'
 
-quality: bicep-lint bicep-build json-lint terraform-fmt shellcheck ansible-lint
+quality: bicep-lint bicep-build json-lint shellcheck ansible-lint
 
 bicep-lint:
 	@for file in $(BICEP_FILES); do \
@@ -32,9 +31,6 @@ bicep-build:
 
 json-lint:
 	jq empty $(JSON_FILES)
-
-terraform-fmt:
-	terraform -chdir=terraform fmt -check -diff
 
 shellcheck:
 	shellcheck $(SHELL_FILES)

@@ -1,11 +1,10 @@
-# Azure VM Terraform/Bicep + Ansible API
+# Azure VM Bicep + Ansible API
 
 This repository provisions a small Azure environment and bootstraps a Linux VM as an Ansible control/API host. The API is intended to receive build requests, then run Ansible automation such as creating or deleting temporary Windows users.
 
-The repo currently contains two infrastructure-as-code implementations:
+Bicep is the infrastructure-as-code implementation for this project.
 
-- `terraform/`: the original Terraform deployment.
-- `bicep/`: the Bicep/ARM rewrite of the same Azure resources.
+- `bicep/`: Azure infrastructure deployment.
 
 ## Architecture
 
@@ -17,12 +16,47 @@ At a high level:
 4. Submit build requests through Azure Pipelines or `scripts/submit_build_request.sh`.
 5. The Flask API can trigger Ansible workflows against the Windows VM.
 
+```text
+                 +---------------------------+
+                 | Developer / Azure DevOps  |
+                 +-------------+-------------+
+                               |
+                               | make quality
+                               | az deployment sub create
+                               v
+        +----------------------+----------------------+
+        |               Azure Subscription            |
+        |                                             |
+        |  +---------------- Resource Group --------+ |
+        |  |                                        | |
+        |  |  +---------+       +----------------+  | |
+        |  |  |  VNet   |-------| Shared Subnet  |  | |
+        |  |  +----+----+       +--------+-------+  | |
+        |  |       |                     |          | |
+        |  |       |                     |          | |
+        |  | +-----v------+       +------v-------+  | |
+        |  | | Linux VM   |       | Windows VM   |  | |
+        |  | | Flask API  |       | WinRM/RDP    |  | |
+        |  | | Ansible    |------>| temp users   |  | |
+        |  | +-----+------+       +--------------+  | |
+        |  |       ^                                | |
+        |  +-------|--------------------------------+ |
+        |          |                                  |
+        +----------|----------------------------------+
+                   |
+                   | POST /build
+                   |
+          +--------+---------+
+          | Azure Pipeline / |
+          | submit script    |
+          +------------------+
+```
+
 ## Repository Layout
 
 | Path | Purpose |
 | --- | --- |
-| `terraform/` | Terraform version of the Azure VM deployment. |
-| `bicep/` | Bicep/ARM version of the Azure VM deployment, including lint config and deployment docs. |
+| `bicep/` | Bicep Azure VM deployment, including lint config and deployment docs. |
 | `ansible/` | Ansible inventory, playbooks, roles, templates, and local development Makefile. |
 | `scripts/submit_build_request.sh` | Helper script that POSTs a build request to the Flask API. |
 | `azure-pipelines.yml` | Manual Azure Pipeline that submits a build request to the API. |
@@ -42,9 +76,9 @@ The IaC provisions:
 
 The open inbound rules are convenient for a personal proof-of-concept. Tighten source CIDRs before using this outside a controlled environment.
 
-## Provision With Bicep
+## Provision Infrastructure
 
-The Bicep implementation is the preferred version for new changes.
+Run the Bicep checks before deploying:
 
 ```bash
 az bicep lint --file bicep/main.bicep
@@ -73,21 +107,6 @@ az deployment sub create \
 ```
 
 See `bicep/README.md` for Bicep linting, PSRule, Checkov, what-if, and teardown details.
-
-## Provision With Terraform
-
-```bash
-cd terraform
-terraform init
-terraform apply
-```
-
-Required variables:
-
-- `ssh_public_key`
-- `windows_admin_password`
-
-See `terraform/README.md` for the original quick start.
 
 ## Bootstrap the Ansible API Host
 
@@ -198,15 +217,6 @@ pwsh -NoLogo -NoProfile -Command \
 
 ## Cleanup
 
-Bicep-created resources:
-
 ```bash
 az group delete --name rg-personal-ansible-api
-```
-
-Terraform-created resources:
-
-```bash
-cd terraform
-terraform destroy
 ```

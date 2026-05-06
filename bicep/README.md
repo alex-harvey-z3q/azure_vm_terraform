@@ -1,6 +1,6 @@
 # Azure VM Bicep Deployment
 
-This directory is a Bicep rewrite of the Terraform deployment in `../terraform`.
+This directory contains the primary infrastructure-as-code implementation for the Azure VM environment.
 
 The entrypoint is subscription-scoped because it creates the resource group first. The Azure resources themselves are deployed through `resources.bicep`, which runs at resource-group scope.
 
@@ -116,7 +116,7 @@ The deployment outputs the resource group name, Linux and Windows public/private
 
 The native Bicep linter catches syntax, type, style, and selected best-practice issues. For policy-as-code checks, add one of these in CI.
 
-PSRule for Azure checks Bicep/ARM against Azure well-architected and service-specific rules:
+PSRule for Azure checks Bicep deployments against Azure well-architected and service-specific rules:
 
 ```bash
 pwsh -NoLogo -NoProfile -Command \
